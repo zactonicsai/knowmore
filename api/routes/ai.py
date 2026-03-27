@@ -53,48 +53,59 @@ def _build_context(es_hits: list[dict], chroma_hits: list[dict], max_chars: int 
 async def ai_query(req: AIQueryRequest):
     """AI-powered query: summarize or answer questions from indexed documents."""
 
-    # If summarizing a specific document
-    if req.mode == "summarize" and req.document_id:
-        doc = await es.get_document(req.document_id)
-        if not doc:
-            raise HTTPException(status_code=404, detail="Document not found")
-        context = doc.get("text", "")
-        if not context:
-            raise HTTPException(status_code=400, detail="Document has no extracted text")
-        answer = await ollama.summarize(context[:8000])
-        return AIQueryResponse(answer=answer, sources=[doc.get("filename", "")], context_used=1)
+    try:
+        # If summarizing a specific document
+        if req.mode == "summarize" and req.document_id:
+            doc = await es.get_document(req.document_id)
+            if not doc:
+                raise HTTPException(status_code=404, detail="Document not found")
+            context = doc.get("text", "")
+            if not context:
+                raise HTTPException(status_code=400, detail="Document has no extracted text")
+            answer = await ollama.summarize(context[:8000])
+            return AIQueryResponse(answer=answer, sources=[doc.get("filename", "")], context_used=1)
 
-    # Retrieve context from both stores
-    es_hits = await es.search_keyword(
-        query=req.question,
-        limit=req.limit,
-        category=req.category,
-        classification=req.classification,
-    )
+        # Retrieve context from both stores
+        es_hits = await es.search_keyword(
+            query=req.question,
+            limit=req.limit,
+            category=req.category,
+            classification=req.classification,
+        )
 
-    query_emb = embed.generate_embedding(req.question)
-    where = {}
-    if req.category:
-        where["category"] = req.category
-    chroma_hits = chroma.search_semantic(
-        query_embedding=query_emb,
-        limit=req.limit,
-        where=where if where else None,
-    )
+        query_emb = embed.generate_embedding(req.question)
+        where = {}
+        if req.category:
+            where["category"] = req.category
+        chroma_hits = chroma.search_semantic(
+            query_embedding=query_emb,
+            limit=req.limit,
+            where=where if where else None,
+        )
 
-    context, sources = _build_context(es_hits, chroma_hits)
+        context, sources = _build_context(es_hits, chroma_hits)
 
-    if not context.strip():
+        if not context.strip():
+            return AIQueryResponse(
+                answer="Not found in provided documents. No relevant documents are indexed yet.",
+                sources=[],
+                context_used=0,
+            )
+
+        # Generate response
+        if req.mode == "summarize":
+            answer = await ollama.summarize(context)
+        else:
+            answer = await ollama.answer_question(context, req.question)
+
+        return AIQueryResponse(answer=answer, sources=sources, context_used=len(sources))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("AI query failed: %s", e, exc_info=True)
         return AIQueryResponse(
-            answer="Not found in provided documents. No relevant documents are indexed yet.",
+            answer=f"AI service error: {str(e)}",
             sources=[],
             context_used=0,
         )
-
-    # Generate response
-    if req.mode == "summarize":
-        answer = await ollama.summarize(context)
-    else:
-        answer = await ollama.answer_question(context, req.question)
-
-    return AIQueryResponse(answer=answer, sources=sources, context_used=len(sources))

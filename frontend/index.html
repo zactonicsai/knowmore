@@ -494,6 +494,11 @@
             });
             const data = await resp.json();
 
+            if (!resp.ok) {
+                responseEl.innerHTML = `<p class="text-red-400 text-center py-8">Error ${resp.status}: ${esc(data.detail || JSON.stringify(data))}</p>`;
+                return;
+            }
+
             responseEl.innerHTML = `<div class="whitespace-pre-wrap text-sm leading-relaxed">${esc(data.answer)}</div>`;
             countEl.textContent = `${data.context_used} source(s) used`;
 
@@ -504,7 +509,7 @@
                 ).join('');
             }
         } catch (e) {
-            responseEl.innerHTML = '<p class="text-red-400 text-center py-8">AI query failed. Ensure Ollama is running.</p>';
+            responseEl.innerHTML = `<p class="text-red-400 text-center py-8">AI query failed: ${esc(e.message)}. Check that all services are running.</p>`;
         }
     }
 
