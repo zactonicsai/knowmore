@@ -5,6 +5,7 @@ import logging
 from datetime import timedelta
 
 from temporalio import workflow
+from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from workers.activities import (
@@ -31,9 +32,9 @@ class DocumentProcessingWorkflow:
         filepath = input_data["filepath"]
         metadata = {**input_data["metadata"], "filename": filename}
 
-        retry_policy = {
+        retry_opts = {
             "start_to_close_timeout": timedelta(minutes=5),
-            "retry_policy": workflow.RetryPolicy(
+            "retry_policy": RetryPolicy(
                 initial_interval=timedelta(seconds=2),
                 backoff_coefficient=2.0,
                 maximum_interval=timedelta(minutes=1),
@@ -43,7 +44,7 @@ class DocumentProcessingWorkflow:
 
         # Step 1: Detect file type
         file_info = await workflow.execute_activity(
-            detect_file_type, filepath, **retry_policy
+            detect_file_type, filepath, **retry_opts
         )
         workflow.logger.info("File type detected: %s", file_info)
 
@@ -51,24 +52,24 @@ class DocumentProcessingWorkflow:
         text = ""
         if file_info.get("needs_ocr"):
             text = await workflow.execute_activity(
-                ocr_extract, filepath, **retry_policy
+                ocr_extract, filepath, **retry_opts
             )
         else:
             text = await workflow.execute_activity(
-                extract_text, filepath, **retry_policy
+                extract_text, filepath, **retry_opts
             )
 
         # Step 3: If PDF with no text, try OCR
         if file_info.get("is_pdf") and len(text.strip()) < 50:
             ocr_text = await workflow.execute_activity(
-                ocr_extract, filepath, **retry_policy
+                ocr_extract, filepath, **retry_opts
             )
             if len(ocr_text.strip()) > len(text.strip()):
                 text = ocr_text
 
         # Step 4: Post-process
         text = await workflow.execute_activity(
-            post_process_text, text, **retry_policy
+            post_process_text, text, **retry_opts
         )
 
         if not text.strip():
@@ -77,17 +78,21 @@ class DocumentProcessingWorkflow:
 
         # Step 5: Generate embeddings
         embedding = await workflow.execute_activity(
-            generate_embedding, text, **retry_policy
+            generate_embedding, text, **retry_opts
         )
 
         # Step 6: Index to Elasticsearch
         await workflow.execute_activity(
-            index_to_elasticsearch, doc_id, text, metadata, **retry_policy
+            index_to_elasticsearch,
+            args=[doc_id, text, metadata],
+            **retry_opts,
         )
 
         # Step 7: Index to ChromaDB
         await workflow.execute_activity(
-            index_to_chromadb, doc_id, embedding, text, metadata, **retry_policy
+            index_to_chromadb,
+            args=[doc_id, embedding, text, metadata],
+            **retry_opts,
         )
 
         return {"doc_id": doc_id, "status": "indexed", "text_length": len(text)}

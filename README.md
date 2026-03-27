@@ -117,4 +117,3 @@ Environment variables (set in docker-compose.yml):
 | OLLAMA_URL        | http://ollama:11434         |
 | S3_ENDPOINT       | http://localstack:4566      |
 | OLLAMA_MODEL      | tinyllama                   |
-"# knowmore" 

@@ -44,6 +44,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      app-net:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U temporal"]
       interval: 5s
@@ -61,8 +63,12 @@ services:
       - upload-data:/uploads
     environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - CHROMADB_URL=http://chromadb:8100
+      - CHROMADB_URL=http://chromadb:8000
       - TEMPORAL_HOST=temporal:7233
+      - TEMPORAL_TASK_QUEUE=document-processing
+      - TEMPORAL_CONNECT_RETRIES=30
+      - TEMPORAL_CONNECT_DELAY_SECONDS=2
+      - LOG_LEVEL=INFO
       - OLLAMA_URL=http://ollama:11434
       - S3_ENDPOINT=http://localstack:4566
       - S3_BUCKET=documents
@@ -141,6 +147,8 @@ services:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
     ports:
       - "7233:7233"
+    networks:
+      app-net:
     healthcheck:
       test: ["CMD-SHELL", "echo"]
       interval: 10s
@@ -156,6 +164,8 @@ services:
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://localhost:8080
+    networks:
+      app-net:
     ports:
       - "8080:8080"
 
