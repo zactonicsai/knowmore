@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocIntel — Document Intelligence Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['DM Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        surface: {
+                            50: '#f8faf9',
+                            100: '#eef2f0',
+                            800: '#1a1f1d',
+                            900: '#0f1311',
+                            950: '#080b09',
+                        },
+                        accent: {
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+        /* Transitions */
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* Tab active indicator */
+        .tab-active { border-bottom: 2px solid #22c55e; color: #22c55e; }
+        .dark .tab-active { color: #4ade80; border-color: #4ade80; }
+    </style>
+</head>
+<body class="bg-surface-50 dark:bg-surface-950 text-gray-800 dark:text-gray-200 min-h-screen transition-colors duration-300">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-surface-900/80 border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-500 to-emerald-700 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">Doc<span class="text-accent-500">Intel</span></h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="status-dot" class="flex items-center gap-2 text-xs mono text-gray-500">
+                    <span class="w-2 h-2 rounded-full bg-accent-500 pulse-dot"></span> System Online
+                </span>
+                <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-surface-800 transition-colors" title="Toggle theme">
+                    <svg id="theme-icon-light" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <svg id="theme-icon-dark" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="max-w-7xl mx-auto px-6 pt-4">
+        <div class="flex gap-1 border-b border-gray-200 dark:border-gray-800">
+            <button onclick="showTab('upload')" id="tab-upload" class="tab-active px-4 py-2.5 text-sm font-medium transition-colors">Upload</button>
+            <button onclick="showTab('documents')" id="tab-documents" class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Documents</button>
+            <button onclick="showTab('search')" id="tab-search" class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Search</button>
+            <button onclick="showTab('ai')" id="tab-ai" class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">AI Assistant</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-6 py-6">
+
+        <!-- Upload Panel -->
+        <section id="panel-upload" class="fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Upload Zone -->
+                <div class="bg-white dark:bg-surface-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+                    <h2 class="text-lg font-bold mb-4">Upload Document</h2>
+                    <div id="drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-10 text-center cursor-pointer hover:border-accent-500 dark:hover:border-accent-400 transition-colors"
+                         ondragover="event.preventDefault(); this.classList.add('border-accent-500')"
+                         ondragleave="this.classList.remove('border-accent-500')"
+                         ondrop="handleDrop(event)"
+                         onclick="document.getElementById('file-input').click()">
+                        <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Drag & drop files here, or <span class="text-accent-500 font-medium">browse</span></p>
+                        <p class="text-xs text-gray-400 mt-2">PDF, DOCX, TXT, CSV, Images — up to 100MB</p>
+                        <input id="file-input" type="file" class="hidden" multiple onchange="handleFiles(this.files)">
+                    </div>
+                    <div id="file-list" class="mt-4 space-y-2"></div>
+                </div>
+
+                <!-- Metadata Form -->
+                <div class="bg-white dark:bg-surface-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+                    <h2 class="text-lg font-bold mb-4">Metadata</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5 text-gray-600 dark:text-gray-400">Category</label>
+                            <select id="meta-category" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/40">
+                                <option value="">Select category...</option>
+                                <option value="grocery">Grocery</option>
+                                <option value="produce">Produce</option>
+                                <option value="protein">Protein</option>
+                                <option value="staples">Staples</option>
+                                <option value="pricing">Pricing</option>
+                                <option value="report">Report</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5 text-gray-600 dark:text-gray-400">Classification</label>
+                            <input id="meta-classification" type="text" placeholder="e.g., public, internal, confidential" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/40">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5 text-gray-600 dark:text-gray-400">Research Area</label>
+                            <input id="meta-research" type="text" placeholder="e.g., price-tracking, nutrition, meal-planning" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/40">
+                        </div>
+                        <button onclick="uploadFiles()" id="btn-upload" class="w-full py-2.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-medium text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                            Upload & Process
+                        </button>
+                    </div>
+                    <div id="upload-status" class="mt-4 space-y-2"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Documents Panel -->
+        <section id="panel-documents" class="hidden fade-in">
+            <div class="bg-white dark:bg-surface-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                    <h2 class="text-lg font-bold">Indexed Documents</h2>
+                    <button onclick="loadDocuments()" class="text-sm text-accent-500 hover:text-accent-600 font-medium">Refresh</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 dark:bg-surface-800 text-left">
+                            <tr>
+                                <th class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Filename</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Classification</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Text Preview</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doc-table-body" class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tr><td colspan="6" class="px-6 py-10 text-center text-gray-400">Loading documents...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Panel -->
+        <section id="panel-search" class="hidden fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Search Form -->
+                <div class="bg-white dark:bg-surface-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+                    <h2 class="text-lg font-bold mb-4">Search Documents</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <input id="search-query" type="text" placeholder="Enter search query..." class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/40" onkeydown="if(event.key==='Enter') runSearch()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5 text-gray-600 dark:text-gray-400">Search Type</label>
+                            <div class="flex gap-2">
+                                <button onclick="setSearchType('keyword')" id="st-keyword" class="flex-1 py-2 rounded-lg text-xs font-medium border border-accent-500 bg-accent-500/10 text-accent-500">Keyword</button>
+                                <button onclick="setSearchType('semantic')" id="st-semantic" class="flex-1 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500">Semantic</button>
+                                <button onclick="setSearchType('hybrid')" id="st-hybrid" class="flex-1 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500">Hybrid</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5 text-gray-600 dark:text-gray-400">Filter by Category</label>
+                            <select id="search-category" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/40">
+                                <option value="">All categories</option>
+                                <option value="grocery">Grocery</option>
+                                <option value="produce">Produce</option>
+                                <option value="protein">Protein</option>
+                                <option value="staples">Staples</option>
+                                <option value="pricing">Pricing</option>
+                            </select>
+                        </div>
+                        <button onclick="runSearch()" class="w-full py-2.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-medium text-sm transition-colors">Search</button>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div class="lg:col-span-2 bg-white dark:bg-surface-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+                    <h2 class="text-lg font-bold mb-4">Results</h2>
+                    <div id="search-results" class="space-y-3">
+                        <p class="text-sm text-gray-400 text-center py-8">Enter a query to search your documents</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Assistant Panel -->
+        <section id="panel-ai" class="hidden fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- AI Input -->
+                <div class="bg-white dark:bg-surface-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+                    <h2 class="text-lg font-bold mb-4">AI Assistant</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5 text-gray-600 dark:text-gray-400">Your Question</label>
+                            <textarea id="ai-question" rows="4" placeholder="Ask anything about your documents..." class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/40 resize-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5 text-gray-600 dark:text-gray-400">Filter (optional)</label>
+                            <select id="ai-category" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/40">
+                                <option value="">All documents</option>
+                                <option value="grocery">Grocery</option>
+                                <option value="produce">Produce</option>
+                                <option value="protein">Protein</option>
+                                <option value="staples">Staples</option>
+                                <option value="pricing">Pricing</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="askAI('question')" class="flex-1 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-600 text-white font-medium text-sm transition-colors">Ask Question</button>
+                            <button onclick="askAI('summarize')" class="flex-1 py-2.5 rounded-lg border border-accent-500 text-accent-500 hover:bg-accent-500/10 font-medium text-sm transition-colors">Summarize</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Response -->
+                <div class="lg:col-span-2 bg-white dark:bg-surface-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Response</h2>
+                        <span id="ai-source-count" class="text-xs mono text-gray-400"></span>
+                    </div>
+                    <div id="ai-response" class="prose dark:prose-invert prose-sm max-w-none">
+                        <p class="text-gray-400 text-center py-8">Ask a question or request a summary to get started</p>
+                    </div>
+                    <div id="ai-sources" class="mt-4 hidden">
+                        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Sources</h3>
+                        <div id="ai-sources-list" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
+
+    <script>
+    // ── State ──────────────────────────────────────────
+    const API = '/api';
+    let selectedFiles = [];
+    let searchType = 'keyword';
+
+    // ── Theme Toggle ──────────────────────────────────
+    function toggleTheme() {
+        document.documentElement.classList.toggle('dark');
+    }
+
+    // ── Tab Navigation ────────────────────────────────
+    function showTab(name) {
+        ['upload', 'documents', 'search', 'ai'].forEach(t => {
+            document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== name);
+            const tab = document.getElementById(`tab-${t}`);
+            if (t === name) {
+                tab.classList.add('tab-active');
+                tab.classList.remove('text-gray-500');
+            } else {
+                tab.classList.remove('tab-active');
+                tab.classList.add('text-gray-500');
+            }
+        });
+        if (name === 'documents') loadDocuments();
+    }
+
+    // ── Toast Notifications ───────────────────────────
+    function toast(msg, type = 'info') {
+        const colors = { info: 'bg-blue-500', success: 'bg-accent-500', error: 'bg-red-500' };
+        const el = document.createElement('div');
+        el.className = `${colors[type]} text-white text-sm px-4 py-2.5 rounded-lg shadow-lg fade-in`;
+        el.textContent = msg;
+        document.getElementById('toast-container').appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+    }
+
+    // ── File Upload ───────────────────────────────────
+    function handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('border-accent-500');
+        handleFiles(e.dataTransfer.files);
+    }
+
+    function handleFiles(files) {
+        selectedFiles = Array.from(files);
+        renderFileList();
+        document.getElementById('btn-upload').disabled = selectedFiles.length === 0;
+    }
+
+    function renderFileList() {
+        const el = document.getElementById('file-list');
+        el.innerHTML = selectedFiles.map((f, i) => `
+            <div class="flex items-center justify-between bg-gray-50 dark:bg-surface-800 rounded-lg px-3 py-2 text-sm">
+                <span class="truncate flex-1">${f.name}</span>
+                <span class="text-gray-400 ml-2 mono text-xs">${(f.size/1024).toFixed(1)}KB</span>
+                <button onclick="removeFile(${i})" class="ml-2 text-gray-400 hover:text-red-500">&times;</button>
+            </div>
+        `).join('');
+    }
+
+    function removeFile(i) {
+        selectedFiles.splice(i, 1);
+        renderFileList();
+        document.getElementById('btn-upload').disabled = selectedFiles.length === 0;
+    }
+
+    async function uploadFiles() {
+        const btn = document.getElementById('btn-upload');
+        const statusEl = document.getElementById('upload-status');
+        btn.disabled = true;
+        btn.textContent = 'Uploading...';
+
+        const category = document.getElementById('meta-category').value;
+        const classification = document.getElementById('meta-classification').value;
+        const research = document.getElementById('meta-research').value;
+
+        statusEl.innerHTML = '';
+
+        for (const file of selectedFiles) {
+            const form = new FormData();
+            form.append('file', file);
+            form.append('category', category);
+            form.append('classification', classification);
+            form.append('research_area', research);
+
+            try {
+                const resp = await fetch(`${API}/documents/upload`, { method: 'POST', body: form });
+                const data = await resp.json();
+                statusEl.innerHTML += `<div class="text-sm text-accent-500 fade-in">✓ ${file.name} — ${data.status}</div>`;
+                toast(`Uploaded: ${file.name}`, 'success');
+            } catch (e) {
+                statusEl.innerHTML += `<div class="text-sm text-red-500 fade-in">✗ ${file.name} — Failed</div>`;
+                toast(`Failed: ${file.name}`, 'error');
+            }
+        }
+
+        selectedFiles = [];
+        renderFileList();
+        btn.textContent = 'Upload & Process';
+        btn.disabled = true;
+    }
+
+    // ── Document Table ────────────────────────────────
+    async function loadDocuments() {
+        const tbody = document.getElementById('doc-table-body');
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400">Loading...</td></tr>';
+
+        try {
+            const resp = await fetch(`${API}/documents/`);
+            const docs = await resp.json();
+
+            if (docs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400">No documents indexed yet. Upload some files to get started.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = docs.map(doc => `
+                <tr class="hover:bg-gray-50 dark:hover:bg-surface-800 transition-colors">
+                    <td class="px-6 py-3 font-medium">${esc(doc.filename)}</td>
+                    <td class="px-6 py-3"><span class="px-2 py-0.5 rounded-full text-xs bg-accent-500/10 text-accent-500">${esc(doc.metadata.category || '—')}</span></td>
+                    <td class="px-6 py-3 text-gray-500 text-xs">${esc(doc.metadata.classification || '—')}</td>
+                    <td class="px-6 py-3">
+                        <span class="px-2 py-0.5 rounded-full text-xs ${doc.status === 'indexed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}">${doc.status}</span>
+                    </td>
+                    <td class="px-6 py-3 text-gray-500 text-xs max-w-xs truncate">${esc(doc.text_preview || '—')}</td>
+                    <td class="px-6 py-3">
+                        <button onclick="summarizeDoc('${doc.id}')" class="text-xs text-accent-500 hover:underline">Summarize</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-400">Failed to load documents</td></tr>';
+        }
+    }
+
+    function summarizeDoc(docId) {
+        showTab('ai');
+        document.getElementById('ai-question').value = `Summarize document ${docId}`;
+        // Auto-trigger
+        askAI('summarize', docId);
+    }
+
+    // ── Search ────────────────────────────────────────
+    function setSearchType(type) {
+        searchType = type;
+        ['keyword', 'semantic', 'hybrid'].forEach(t => {
+            const btn = document.getElementById(`st-${t}`);
+            if (t === type) {
+                btn.className = 'flex-1 py-2 rounded-lg text-xs font-medium border border-accent-500 bg-accent-500/10 text-accent-500';
+            } else {
+                btn.className = 'flex-1 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500';
+            }
+        });
+    }
+
+    async function runSearch() {
+        const query = document.getElementById('search-query').value.trim();
+        if (!query) return;
+
+        const resultsEl = document.getElementById('search-results');
+        resultsEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Searching...</p>';
+
+        try {
+            const resp = await fetch(`${API}/search/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    search_type: searchType,
+                    category: document.getElementById('search-category').value || null,
+                    limit: 10,
+                }),
+            });
+            const data = await resp.json();
+
+            if (data.results.length === 0) {
+                resultsEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">No results found</p>';
+                return;
+            }
+
+            resultsEl.innerHTML = data.results.map(r => `
+                <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-accent-500/50 transition-colors fade-in">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium text-sm">${esc(r.filename)}</span>
+                        <span class="mono text-xs text-gray-400">Score: ${r.score.toFixed(3)}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 leading-relaxed">${esc(r.text_preview)}</p>
+                    <div class="mt-2 flex gap-2">
+                        ${r.metadata.category ? `<span class="px-2 py-0.5 rounded-full text-xs bg-accent-500/10 text-accent-500">${esc(r.metadata.category)}</span>` : ''}
+                        ${r.metadata.research_area ? `<span class="px-2 py-0.5 rounded-full text-xs bg-blue-500/10 text-blue-500">${esc(r.metadata.research_area)}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) {
+            resultsEl.innerHTML = '<p class="text-sm text-red-400 text-center py-8">Search failed</p>';
+        }
+    }
+
+    // ── AI Assistant ──────────────────────────────────
+    async function askAI(mode, docId = null) {
+        const question = document.getElementById('ai-question').value.trim();
+        if (!question && mode === 'question') return;
+
+        const responseEl = document.getElementById('ai-response');
+        const sourcesEl = document.getElementById('ai-sources');
+        const sourcesListEl = document.getElementById('ai-sources-list');
+        const countEl = document.getElementById('ai-source-count');
+
+        responseEl.innerHTML = '<div class="flex items-center gap-2 text-gray-400 py-8 justify-center"><svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.2"/><path d="M12 2a10 10 0 019.95 9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> Thinking...</div>';
+        sourcesEl.classList.add('hidden');
+
+        const body = {
+            question: question || 'Summarize the most relevant documents',
+            mode,
+            category: document.getElementById('ai-category').value || null,
+        };
+        if (docId) body.document_id = docId;
+
+        try {
+            const resp = await fetch('/ai/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const data = await resp.json();
+
+            responseEl.innerHTML = `<div class="whitespace-pre-wrap text-sm leading-relaxed">${esc(data.answer)}</div>`;
+            countEl.textContent = `${data.context_used} source(s) used`;
+
+            if (data.sources && data.sources.length > 0) {
+                sourcesEl.classList.remove('hidden');
+                sourcesListEl.innerHTML = data.sources.map(s =>
+                    `<span class="px-2.5 py-1 rounded-lg text-xs bg-gray-100 dark:bg-surface-800 text-gray-600 dark:text-gray-400">${esc(s)}</span>`
+                ).join('');
+            }
+        } catch (e) {
+            responseEl.innerHTML = '<p class="text-red-400 text-center py-8">AI query failed. Ensure Ollama is running.</p>';
+        }
+    }
+
+    // ── Utility ───────────────────────────────────────
+    function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str || '';
+        return d.innerHTML;
+    }
+
+    // ── Init ──────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        // Check system health
+        fetch(`${API}/health`).then(r => r.json()).then(d => {
+            if (d.status === 'ok') toast('System online', 'success');
+        }).catch(() => {
+            document.getElementById('status-dot').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline';
+            toast('API unreachable', 'error');
+        });
+    });
+    </script>
+</body>
+</html>
